@@ -154,6 +154,9 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 .ai-out ul { padding-left: 14px; }
 .ai-out li { margin-bottom: 4px; }
 .ai-out strong { color: var(--ink); font-weight: 700; }
+.hot { color: var(--accent); font-weight: 700; }
+.rising { color: #16a34a; font-weight: 700; }
+.watch { color: #b45309; font-weight: 700; }
 .ai-out .kt { display: inline-block; background: var(--bg2); border-radius: 3px; padding: 0 5px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--ink2); margin: 0 1px; }
 .cursor { display: inline-block; width: 2px; height: 13px; background: var(--accent); animation: blink .6s step-end infinite; vertical-align: middle; margin-left: 1px; }
 @keyframes blink { 50% { opacity: 0; } }
@@ -361,9 +364,25 @@ async function fetchAllNaver(id, sec, start, end) {
 }
 
 function simulateOne(name, start) {
-  const m=new Date(start).getMonth()+1, s=m>=6&&m<=8;
-  const b={'여름코디':s?88:25,'린넨':s?82:18,'보헤미안':s?65:38,'러닝코어':70,'믹스매치':56,'슬립드레스':s?73:22,'피셔맨코어':s?60:20,'Y2K':74,'고프코어':50,'백꾸':63};
-  return (b[name]||50)+Math.round((Math.random()-.5)*10);
+  const m = new Date(start).getMonth() + 1;
+  const isSummer = m >= 6 && m <= 8;
+  const isSpring = m >= 3 && m <= 5;
+  const isFall = m >= 9 && m <= 11;
+  const isWinter = m === 12 || m <= 2;
+
+  const seasonalBase = {
+    '여름코디':   isSummer?92:isSpring?45:isFall?20:15,
+    '린넨':       isSummer?88:isSpring?50:isFall?15:10,
+    '보헤미안':   isSummer?70:isSpring?65:isFall?40:30,
+    '러닝코어':   isSummer?75:isSpring?72:isFall?68:60,
+    '믹스매치':   isSummer?55:isSpring?62:isFall?60:52,
+    '슬립드레스': isSummer?80:isSpring?55:isFall?20:10,
+    '피셔맨코어': isSummer?65:isSpring?58:isFall?25:15,
+    'Y2K':        isSummer?72:isSpring?75:isFall?70:68,
+    '고프코어':   isSummer?45:isSpring?50:isFall?72:80,
+    '백꾸':       62,
+  };
+  return (seasonalBase[name] || 50) + Math.round((Math.random() - 0.5) * 8);
 }
 function simulateNaver(start) { return FASHION_KWS.map(g=>({name:g.name,value:simulateOne(g.name,start),simulated:true})); }
 
@@ -568,15 +587,23 @@ function buildAICards(chs) {
 }
 
 function renderMD(text) {
+  // First clean up any leaked style attributes from AI output
+  text = text
+    .replace(/#[0-9a-fA-F]{6};font-weight:\d+">([^<]*)/g, '$1')  // remove leaked styles
+    .replace(/style="[^"]*">/g, '>')
+    .replace(/<span[^>]*>(🔥 ?HOT)<\/span>/g, '🔥HOT')
+    .replace(/<span[^>]*>(📈 ?RISING)<\/span>/g, '📈RISING')
+    .replace(/<span[^>]*>(👀 ?WATCH)<\/span>/g, '👀WATCH');
+
   return text
-    .replace(/^#{1,3} (.+)/gm, '<h3>$1</h3>')          // headings
-    .replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">')  // hr
+    .replace(/^#{1,3} (.+)/gm, '<h3>$1</h3>')
+    .replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/🔥HOT/g, '<span style="color:var(--accent);font-weight:700">🔥 HOT</span>')
-    .replace(/📈RISING/g, '<span style="color:#16a34a;font-weight:700">📈 RISING</span>')
-    .replace(/👀WATCH/g, '<span style="color:#b45309;font-weight:700">👀 WATCH</span>')
-    .replace(/^\d+\. (.+)/gm, '<li>$1</li>')           // numbered lists
-    .replace(/^[-•] (.+)/gm, '<li>$1</li>')             // bullet lists
+    .replace(/🔥 ?HOT/g, '<span class="hot">🔥 HOT</span>')
+    .replace(/📈 ?RISING/g, '<span class="rising">📈 RISING</span>')
+    .replace(/👀 ?WATCH/g, '<span class="watch">👀 WATCH</span>')
+    .replace(/^\d+\. (.+)/gm, '<li>$1</li>')
+    .replace(/^[-•] (.+)/gm, '<li>$1</li>')
     .replace(/(<li>[\s\S]*?<\/li>(\n)?)+/g, m => `<ul>${m}</ul>`)
     .replace(/#([가-힣\w]+)/g, '<span class="kt">#$1</span>')
     .replace(/\n\n/g, '<br><br>')
